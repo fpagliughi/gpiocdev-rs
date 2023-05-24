@@ -375,7 +375,7 @@ impl AsRawFd for Chip {
 
 /// The publicly available information for a GPIO chip.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(rename_all = "camelCase"))]
 pub struct Info {
     /// The system name for the chip, such as "*gpiochip0*".
     pub name: String,

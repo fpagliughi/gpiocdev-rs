@@ -138,7 +138,7 @@ fn serialize_chip_all_lines(p: &Path, opts: &Opts) -> Result<bool> {
                 lines.push(li);
             }
             let chip_info = ChipInfo { chip: kci, lines };
-            println!("{}", serde_json::to_string(&chip_info)?);
+            println!("{}", serde_json::to_string_pretty(&chip_info)?);
             return Ok(true);
         }
         Err(e) if opts.chip.is_some() => return Err(e),
@@ -212,7 +212,7 @@ fn serialize_chip_matching_lines(p: &Path, opts: &Opts, counts: &mut [u32]) -> R
                 }
             }
             let chip_info = ChipInfo { chip: kci, lines };
-            println!("{}", serde_json::to_string(&chip_info)?);
+            println!("{}", serde_json::to_string_pretty(&chip_info)?);
             return Ok(());
         }
         Err(e) if opts.chip.is_some() => return Err(e),
@@ -319,6 +319,6 @@ fn serialize_chip_line_info(chip: &mut Chip, lines: &[Offset], opts: &Opts) -> R
             .with_context(|| format!("unable to read line {} info from {}", offset, chip.name()))?;
         chip_info.lines.push(li);
     }
-    println!("{}", serde_json::to_string(&chip_info)?);
+    println!("{}", serde_json::to_string_pretty(&chip_info)?);
     Ok(())
 }

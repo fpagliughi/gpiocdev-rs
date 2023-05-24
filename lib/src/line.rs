@@ -180,7 +180,7 @@ impl From<&Config> for v1::HandleRequestFlags {
 
 /// The publicly available information for a line.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(rename_all = "camelCase"))]
 pub struct Info {
     /// The line offset on the GPIO chip.
     pub offset: Offset,
@@ -208,21 +208,25 @@ pub struct Info {
     pub direction: Direction,
 
     /// The bias state of the line.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub bias: Option<Bias>,
 
     /// The drive applied to output lines.
     ///
     /// Only relevant for output lines.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub drive: Option<Drive>,
 
     /// The edge detection state for the line.
     ///
     /// Only relevant for input lines.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub edge_detection: Option<EdgeDetection>,
 
     /// The source clock for edge event timestamps.
     ///
     /// Only relevant for input lines with edge detection.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub event_clock: Option<EventClock>,
 
     /// The debounce period.
@@ -230,6 +234,7 @@ pub struct Info {
     /// Only relevant for input lines with edge detection.
     ///
     /// None or a zero value means no debounce.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub debounce_period: Option<Duration>,
 }
 
@@ -693,7 +698,7 @@ impl From<v2::LineFlags> for EventClock {
 ///
 /// ABI v1 does not provide the seqno nor line_seqno fields.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(rename_all = "camelCase"))]
 pub struct EdgeEvent {
     /// The best estimate of time of event occurrence, in nanoseconds.
     ///
