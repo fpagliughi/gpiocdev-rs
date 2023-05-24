@@ -7,7 +7,16 @@ use anyhow::{bail, Context, Result};
 use clap::Parser;
 use gpiocdev::chip::Chip;
 use gpiocdev::line::{Info, Offset};
+#[cfg(feature = "serde")]
+use serde_derive::Serialize;
 use std::path::Path;
+
+#[cfg(feature = "serde")]
+#[derive(Debug, Serialize)]
+struct ChipInfo {
+    chip: gpiocdev::chip::Info,
+    lines: Vec<Info>,
+}
 
 #[derive(Debug, Parser)]
 #[command(aliases(["l", "info"]))]
@@ -56,6 +65,11 @@ pub struct Opts {
     #[arg(from_global)]
     pub verbose: bool,
 
+    /// Dump info as JSON
+    #[cfg(feature = "serde")]
+    #[arg(from_global)]
+    pub json: bool,
+
     #[command(flatten)]
     uapi_opts: UapiOpts,
 
@@ -78,14 +92,23 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     };
     if opts.lines.is_empty() {
         for p in chips {
+            #[cfg(not(feature = "serde"))]
             if !print_chip_all_lines(&p, opts)? {
+                success = false;
+            }
+            #[cfg(feature = "serde")]
+            if !serialize_chip_all_lines(&p, opts)? {
                 success = false;
             }
         }
     } else {
         let mut counts = vec![0; opts.lines.len()];
         for p in chips {
+            #[cfg(not(feature = "serde"))]
             print_chip_matching_lines(&p, opts, &mut counts)?;
+
+            #[cfg(feature = "serde")]
+            serialize_chip_matching_lines(&p, opts, &mut counts)?;
         }
         success = counts.iter().all(|n| *n == 1);
     }
@@ -93,6 +116,36 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         bail!(common::CmdFailureError {});
     }
     Ok(())
+}
+
+#[cfg(feature = "serde")]
+fn serialize_chip_all_lines(p: &Path, opts: &Opts) -> Result<bool> {
+    if !opts.json {
+        return print_chip_all_lines(p, opts);
+    }
+
+    let abiv = common::actual_abi_version(&opts.uapi_opts)?;
+    match common::chip_from_path(p, abiv) {
+        Ok(c) => {
+            let kci = c
+                .info()
+                .with_context(|| format!("unable to read info from {}", c.name()))?;
+            let mut lines = vec![];
+            for offset in 0..kci.num_lines {
+                let li = c.line_info(offset).with_context(|| {
+                    format!("unable to read line {} info from {}.", offset, c.name())
+                })?;
+                lines.push(li);
+            }
+            let chip_info = ChipInfo { chip: kci, lines };
+            println!("{}", serde_json::to_string(&chip_info)?);
+            return Ok(true);
+        }
+        Err(e) if opts.chip.is_some() => return Err(e),
+        Err(e) if opts.verbose => eprintln!("{:#}", e),
+        Err(_) => {}
+    }
+    Ok(false)
 }
 
 fn print_chip_all_lines(p: &Path, opts: &Opts) -> Result<bool> {
@@ -132,6 +185,41 @@ fn print_chip_all_lines(p: &Path, opts: &Opts) -> Result<bool> {
         Err(_) => {}
     }
     Ok(false)
+}
+
+#[cfg(feature = "serde")]
+fn serialize_chip_matching_lines(p: &Path, opts: &Opts, counts: &mut [u32]) -> Result<()> {
+    if !opts.json {
+        return print_chip_matching_lines(p, opts, counts);
+    }
+
+    match common::chip_from_path(p, common::actual_abi_version(&opts.uapi_opts)?) {
+        Ok(c) => {
+            let kci = c
+                .info()
+                .with_context(|| format!("unable to read info from {}", c.name()))?;
+            let mut lines = vec![];
+            for offset in 0..kci.num_lines {
+                let li = c.line_info(offset).with_context(|| {
+                    format!("unable to read info for line {} from {}", offset, c.name())
+                })?;
+                let oname = format!("{}", offset);
+                for (idx, id) in opts.lines.iter().enumerate() {
+                    if (id == &li.name) || (!opts.by_name && opts.chip.is_some() && id == &oname) {
+                        counts[idx] += 1;
+                        lines.push(li.clone());
+                    }
+                }
+            }
+            let chip_info = ChipInfo { chip: kci, lines };
+            println!("{}", serde_json::to_string(&chip_info)?);
+            return Ok(());
+        }
+        Err(e) if opts.chip.is_some() => return Err(e),
+        Err(e) if opts.verbose => eprintln!("{:#}", e),
+        Err(_) => {}
+    }
+    bail!(common::CmdFailureError {});
 }
 
 fn print_chip_matching_lines(p: &Path, opts: &Opts, counts: &mut [u32]) -> Result<()> {
@@ -179,7 +267,12 @@ fn print_first_matching_lines(opts: &Opts) -> Result<()> {
         offsets.sort_unstable();
         offsets.dedup();
         let mut c = common::chip_from_path(&ci.path, abiv)?;
+
+        #[cfg(not(feature = "serde"))]
         print_chip_line_info(&mut c, &offsets, opts.quoted)?;
+
+        #[cfg(feature = "serde")]
+        serialize_chip_line_info(&mut c, &offsets, opts)?;
     }
     r.validate(&opts.lines, &line_opts)
 }
@@ -209,4 +302,23 @@ fn print_line_info(chip_name: &str, li: &Info, quoted: bool) {
         lname,
         common::stringify_attrs(li, quoted),
     );
+}
+
+#[cfg(feature = "serde")]
+fn serialize_chip_line_info(chip: &mut Chip, lines: &[Offset], opts: &Opts) -> Result<()> {
+    if !opts.json {
+        return print_chip_line_info(chip, lines, opts.quoted);
+    }
+    let mut chip_info = ChipInfo {
+        chip: chip.info()?,
+        lines: vec![],
+    };
+    for &offset in lines {
+        let li = chip
+            .line_info(offset)
+            .with_context(|| format!("unable to read line {} info from {}", offset, chip.name()))?;
+        chip_info.lines.push(li);
+    }
+    println!("{}", serde_json::to_string(&chip_info)?);
+    Ok(())
 }

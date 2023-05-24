@@ -26,11 +26,10 @@ pub struct Opts {
     #[arg(from_global)]
     pub verbose: bool,
 
-    /// Dump info as JSON where appropriate
+    /// Dump info as JSON
     #[cfg(feature = "serde")]
     #[arg(from_global)]
     pub json: bool,
-
 }
 
 // report error and fail overall operation if id does not correspond to a gpiochip.
