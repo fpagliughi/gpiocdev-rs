@@ -25,6 +25,12 @@ pub struct Opts {
 
     #[arg(from_global)]
     pub verbose: bool,
+
+    /// Dump info as JSON where appropriate
+    #[cfg(feature = "serde")]
+    #[arg(from_global)]
+    pub json: bool,
+
 }
 
 // report error and fail overall operation if id does not correspond to a gpiochip.
@@ -52,7 +58,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     };
 
     for p in chips {
-        if !print_chip_info(&p, opts.verbose)? {
+        if !print_chip_info(&p, opts)? {
             success = false;
         }
     }
@@ -62,11 +68,27 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     Ok(())
 }
 
-fn print_chip_info(p: &PathBuf, verbose: bool) -> Result<bool> {
+fn print_chip_info(p: &PathBuf, opts: &Opts) -> Result<bool> {
+    let verbose = opts.verbose;
+
+    #[cfg(feature = "serde")]
+    let json = opts.json;
+
     match Chip::from_path(p) {
         Ok(c) => {
             let ci = c.info()?;
+
+            #[cfg(feature = "serde")]
+            if json {
+                println!("{}", serde_json::to_string(&ci).unwrap());
+            }
+            else {
+                println!("{} [{}] ({} lines)", ci.name, ci.label, ci.num_lines);
+            }
+
+            #[cfg(not(feature = "serde"))]
             println!("{} [{}] ({} lines)", ci.name, ci.label, ci.num_lines);
+
             return Ok(true);
         }
         Err(e) if verbose => eprintln!("unable to open '{}': {:#}", p.display(), e),

@@ -52,6 +52,11 @@ struct Opts {
     #[arg(short = 'v', long, global = true, display_order = 800)]
     pub verbose: bool,
 
+    /// Dump info as JSON where appropriate
+    #[cfg(feature = "serde")]
+    #[arg(short = 'j', long, global = true, display_order = 850)]
+    pub json: bool,
+
     #[command(subcommand)]
     cmd: Command,
 }

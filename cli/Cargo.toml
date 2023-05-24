@@ -29,9 +29,13 @@ mio = {version = "0.8", features = ["os-ext"]}
 nohash-hasher = "0.2"
 rustyline = "11.0"
 rustyline-derive = "0.8"
+serde = {version = "1.0", optional = true}
+serde_derive = {version = "1.0", optional = true}
+serde_json = {version = "1.0", optional = true}
 thiserror = "1.0"
 
 [features]
 default = ["uapi_v1", "uapi_v2"]
+serde = ["dep:serde", "serde_derive", "serde_json"]
 uapi_v1 = ["gpiocdev/uapi_v1"]
 uapi_v2 = ["gpiocdev/uapi_v2"]
